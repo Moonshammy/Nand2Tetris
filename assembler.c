@@ -6,18 +6,15 @@
 
 
 //Struct to store each line of code until it can be printed
-
 typedef struct node {
     char* data; //Should only store either A or C-instruction code (D=D+M or @15)
     void (*fp)(char*); //Points the function for whatever instruction is stored here
     struct node* next;  //Points to next code
 }node_code;
 
-
-
 node_code* nc_head; //Node code head!
 node_code* nc_tail; //Node code tail!
-node_code* nc_current; //Node code traversal!
+
 
 //Handles the file location; input file for .asm, output file for .hack
 char input_file[256]; //.asm
@@ -25,6 +22,9 @@ char output_file[256]; //.hack
 char* filename; //main file directory
 FILE* r_file;
 FILE* w_file;
+
+//Current method to store symbols
+char** symbols;
 
 //Current arrays to convert operands and jumps to their binary command
 //Index value is equal to the ACSII value of the assembler command, stored int is the decimal value of binary command
@@ -41,9 +41,9 @@ int main(void){
     //Once this program is finished, main can take an ARG with appropiate file name
     //Currently, just leaving the directory like this allows for quicker programming
     filename = "..\\project_files\\6\\pong\\Pong";
-    init();
-    first_pass();
-
+    int hash_size = 1000;
+    init(hash_size);
+    first_pass(hash_size);
 
     //closes out program
     exit_program();
@@ -51,14 +51,17 @@ int main(void){
     printf("Program Complete"); //Let's me know the program was successful
 }
 
-void init(){
+void init(int hash_size){
     set_file_exts();
+    char** arr = calloc(hash_size, sizeof(char*));
+    symbols = arr;
     w_file = write_file();
 }
 
 void exit_program(){
     destroy_node_code();
     fclose(w_file);
+    free(symbols);
 }
 
 
@@ -95,18 +98,16 @@ FILE* write_file(){
     return fptr;
 }
 
-void first_pass(){
-    parse_file();
-    transverse_code();
-}
-
-void parse_file(){
+void first_pass(int hash_size){
     r_file = read_file();
     char* line = next_line();
+    int line_num = 0; //Tracks line number to properly register symbols. 
+    int num_syms = 0;
     while (line != NULL){
         switch (line[0]) {
-            case '@':
+            case '@': //All A instructions start with @
                 new_node_code(++line, 'A');
+                line_num++;
                 break;
             case 'A':
                 //Pass through!
@@ -114,17 +115,40 @@ void parse_file(){
                 //Pass through!
             case 'D':
                 //Pass through!
-            case '0':
+            case '0': //All C instructions start with either A, M, D, or 0
                 new_node_code(line, 'B');
+                line_num++;
                 break;
-            case '(':
-                printf("Undeclared variable: %s", line);
+            case '(': //Unregistered symbols. They need to be removed from the code and put into a register
+                line[strlen(line)-2] = '\0'; //Removes right bracket
+                ++line; //Removes left bracket
+                register_symbol(line, line_num, hash_size); 
             default:
                 break;
         }
         line = next_line();
     }
     fclose(r_file);
+}
+
+void register_symbol(char* line, int num, int hash_size){
+    int i = 0;
+    int hash = string_to_hash(line, hash_size);
+    while (symbols[hash] != NULL){
+        i++;
+        if (hash < hash_size-1){
+            hash++;
+        }
+        else{
+            hash = 0;
+        }
+        if (i == hash_size){
+            printf("Error, registered symbols ran out of space at size %d", hash_size);
+            exit_program();
+            exit(1);
+        }
+    }
+    symbols[hash] = line;
 }
 
 char* next_line(){
@@ -167,7 +191,7 @@ void new_node_code(char* data, char type){
 }
 
 void transverse_code(){
-    nc_current = nc_head;
+    node_code* nc_current = nc_head;
     while (nc_current != NULL){
         printf(nc_current->data);
         nc_current = nc_current -> next;
@@ -175,13 +199,26 @@ void transverse_code(){
 }
 
 void destroy_node_code(){
-    nc_current = nc_head;
+    node_code* nc_current = nc_head;
     node_code* nc_node;
     while(nc_current != NULL){
         nc_node = nc_current->next;
         free(nc_current);
         nc_current = nc_node;
     }
+}
+
+//Adds all the ASCII values in a string to create a hash.
+int string_to_hash(char* string, int size){
+    int diff = 66; //Helps give a buffer between closely related chars. ex: ab, ba; ret10, ret11, ret11.
+    unsigned int ascii = 1; //Numbers get large enough they swap over to negatives if not put as an unsigned int.
+    char c;
+    while(string[0] != '\0'){
+        c = string[0];
+        ascii = ((ascii*diff) + c)%size;
+        string++;
+    }
+    return ascii;
 }
 
 //LEGACY; KEPT ONLY TO REFACTOR
