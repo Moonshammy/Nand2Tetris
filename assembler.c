@@ -5,72 +5,65 @@
 #include "assembler.h"
 
 
-//Not used currently,
-enum intstruction{
-    A_INSTRUCTION,
-    B_INSTRUCTION
-};
+//Struct to store each line of code until it can be printed
 
-typedef struct{
-
-    char* code;
-    int value;
+typedef struct node {
+    char* data; //Should only store either A or C-instruction code (D=D+M or @15)
+    void (*fp)(char*); //Points the function for whatever instruction is stored here
+    struct node* next;  //Points to next code
+}node_code;
 
 
-} code_node;
 
-char input_file[256];
-char output_file[256];
-char* filename;
+node_code* nc_head; //Node code head!
+node_code* nc_tail; //Node code tail!
+node_code* nc_current; //Node code traversal!
 
+//Handles the file location; input file for .asm, output file for .hack
+char input_file[256]; //.asm
+char output_file[256]; //.hack
+char* filename; //main file directory
+FILE* r_file;
+FILE* w_file;
+
+//Current arrays to convert operands and jumps to their binary command
+//Index value is equal to the ACSII value of the assembler command, stored int is the decimal value of binary command
+//TODO create hash to reduce size
 int operand_matrix[321]= {
      [48] = 42, [49] = 63, [65] = 48, [68] = 12, [78] = 112, [94] = 58, [98] = 49,
      [101] = 13, [110] = 51, [111] = 113, [113] = 15, [123] = 115, [157] = 55, [159] = 50, 
      [160] = 31, [162] = 14, [160] = 119, [171] = 0, [172] = 114, [176] = 2, [178] = 19, 
      [179] = 7, [183] = 64, [189] = 66, [191] = 83, [192] = 71, [307] = 21, [320] = 85
     };
-
 int jump_matrix[61] = {[55] = 1, [50]=10, [40] = 11, [60] = 100, [47] = 101, [45] = 110, [57] = 111};
 
-int address_table[32768]={};
-
-int code_len;
-int i;
-
 int main(void){
-    //TODO; create an init func
-    //TODO; create an exit func
-    filename = "..\\project_files\\6\\pong\\PongL";
-    set_file_exts(filename);
+    //Once this program is finished, main can take an ARG with appropiate file name
+    //Currently, just leaving the directory like this allows for quicker programming
+    filename = "..\\project_files\\6\\pong\\Pong";
+    init();
+    first_pass();
 
-    FILE* r_file = read_file();
 
-
-    FILE* w_file = write_file();
-    char* code[32768];
+    //closes out program
+    exit_program();
     
-
-    for (i = 0; i < 32768; i++){
-        code[i] = calloc(1, sizeof(char));
-        if (code[i] == NULL) {
-            perror("Memory allocation failed");
-            return 1;
-        }
-    }
-
-    code_len = first_pass(r_file, code);
-    second_pass(w_file, code);
-
-    fclose(r_file);
-    fclose(w_file);
-    for (i = 0; i < 32767; i++){
-        free(code[i]);
-    }
-
-    printf("Program Complete");
+    printf("Program Complete"); //Let's me know the program was successful
 }
 
-void set_file_exts(char* filename){
+void init(){
+    set_file_exts();
+    w_file = write_file();
+}
+
+void exit_program(){
+    destroy_node_code();
+    fclose(w_file);
+}
+
+
+//Function to concat file path with ext
+void set_file_exts(){
     strcpy(input_file, filename);
     strcat(input_file, ".asm");
 
@@ -78,7 +71,7 @@ void set_file_exts(char* filename){
     strcat(output_file, ".hack");
 }
 
-
+//Opens the file to read; returns pointer
 FILE* read_file(){
     FILE *fptr;
     fptr = fopen(input_file, "r");
@@ -90,6 +83,7 @@ FILE* read_file(){
     return fptr;
 }
 
+//Opens file to write; returns pointer
 FILE* write_file(){
     FILE *fptr;
     fptr = fopen(output_file, "w");
@@ -101,6 +95,97 @@ FILE* write_file(){
     return fptr;
 }
 
+void first_pass(){
+    parse_file();
+    transverse_code();
+}
+
+void parse_file(){
+    r_file = read_file();
+    char* line = next_line();
+    while (line != NULL){
+        switch (line[0]) {
+            case '@':
+                new_node_code(++line, 'A');
+                break;
+            case 'A':
+                //Pass through!
+            case 'M':
+                //Pass through!
+            case 'D':
+                //Pass through!
+            case '0':
+                new_node_code(line, 'B');
+                break;
+            case '(':
+                printf("Undeclared variable: %s", line);
+            default:
+                break;
+        }
+        line = next_line();
+    }
+    fclose(r_file);
+}
+
+char* next_line(){
+    int size = 100;
+    char* buffer = (char*) malloc(size);
+    if(fgets(buffer, size, r_file) != NULL){
+        return buffer;
+    }
+    free(buffer);
+    return NULL;
+}
+
+void a_instruction(char* line){
+
+}
+
+void c_instruction(char* line){
+
+}
+
+void new_node_code(char* data, char type){
+    node_code* newNode = (node_code*)malloc(sizeof(node_code));
+    newNode->data = data;
+    switch (type){
+        case 'A':
+            newNode->fp = a_instruction;
+            break;
+        case 'C':
+            newNode->fp = c_instruction;
+    }
+
+    if (nc_head == NULL){
+        nc_head = newNode;
+        nc_tail = newNode;
+    }
+    else{
+        nc_tail->next = newNode;
+        nc_tail = newNode;
+    }
+}
+
+void transverse_code(){
+    nc_current = nc_head;
+    while (nc_current != NULL){
+        printf(nc_current->data);
+        nc_current = nc_current -> next;
+    }
+}
+
+void destroy_node_code(){
+    nc_current = nc_head;
+    node_code* nc_node;
+    while(nc_current != NULL){
+        nc_node = nc_current->next;
+        free(nc_current);
+        nc_current = nc_node;
+    }
+}
+
+//LEGACY; KEPT ONLY TO REFACTOR
+/*
 int first_pass(FILE* file, char* code[]){
     int i = 0;
     char* line = next_line(file);
@@ -114,6 +199,7 @@ int first_pass(FILE* file, char* code[]){
     }
     return i;
 }
+
 
 char* next_line(FILE* file){
     char buffer[1024];
@@ -268,3 +354,5 @@ int convert_to_bin(int dec){
     }
     return binary;
 }
+
+*/
