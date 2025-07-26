@@ -15,6 +15,12 @@ typedef struct node {
 node_code* nc_head; //Node code head!
 node_code* nc_tail; //Node code tail!
 
+//Struct to store symbol name and it's address;
+
+
+//Array to store symbol nodes.
+symbol** symbols;
+
 
 //Handles the file location; input file for .asm, output file for .hack
 char input_file[256]; //.asm
@@ -23,8 +29,7 @@ char* filename; //main file directory
 FILE* r_file;
 FILE* w_file;
 
-//Current method to store symbols
-char** symbols;
+
 
 //Current arrays to convert operands and jumps to their binary command
 //Index value is equal to the ACSII value of the assembler command, stored int is the decimal value of binary command
@@ -41,25 +46,31 @@ int main(void){
     //Once this program is finished, main can take an ARG with appropiate file name
     //Currently, just leaving the directory like this allows for quicker programming
     filename = "..\\project_files\\6\\pong\\Pong";
-    int hash_size = 1000;
+    int hash_size = 1009;
     init(hash_size);
+
     first_pass(hash_size);
+    find_symbol("RET_ADDRESS_CALL247", hash_size);
 
     //closes out program
-    exit_program();
+    exit_program(hash_size);
     
     printf("Program Complete"); //Let's me know the program was successful
 }
 
 void init(int hash_size){
     set_file_exts();
-    char** arr = calloc(hash_size, sizeof(char*));
-    symbols = arr;
     w_file = write_file();
+
+    symbol** arr = calloc(hash_size, sizeof(char*));
+    symbols = arr;
+    init_predefined_symbols(hash_size);
 }
 
-void exit_program(){
+void exit_program(int hash_size){
+
     destroy_node_code();
+    destroy_symbol(hash_size);
     fclose(w_file);
     free(symbols);
 }
@@ -122,33 +133,13 @@ void first_pass(int hash_size){
             case '(': //Unregistered symbols. They need to be removed from the code and put into a register
                 line[strlen(line)-2] = '\0'; //Removes right bracket
                 ++line; //Removes left bracket
-                register_symbol(line, line_num, hash_size); 
+                label_symbols(line, hash_size, line_num);
             default:
                 break;
         }
         line = next_line();
     }
     fclose(r_file);
-}
-
-void register_symbol(char* line, int num, int hash_size){
-    int i = 0;
-    int hash = string_to_hash(line, hash_size);
-    while (symbols[hash] != NULL){
-        i++;
-        if (hash < hash_size-1){
-            hash++;
-        }
-        else{
-            hash = 0;
-        }
-        if (i == hash_size){
-            printf("Error, registered symbols ran out of space at size %d", hash_size);
-            exit_program();
-            exit(1);
-        }
-    }
-    symbols[hash] = line;
 }
 
 char* next_line(){
@@ -159,14 +150,6 @@ char* next_line(){
     }
     free(buffer);
     return NULL;
-}
-
-void a_instruction(char* line){
-
-}
-
-void c_instruction(char* line){
-
 }
 
 void new_node_code(char* data, char type){
@@ -199,17 +182,128 @@ void transverse_code(){
 }
 
 void destroy_node_code(){
-    node_code* nc_current = nc_head;
-    node_code* nc_node;
-    while(nc_current != NULL){
-        nc_node = nc_current->next;
-        free(nc_current);
-        nc_current = nc_node;
+    node_code* current = nc_head;
+    node_code* next;
+    while(current != NULL){
+        next = current->next;
+        free(current);
+        current = next;
     }
+}
+
+static void init_predefined_symbols(int hash_size){
+    char* symbols[23] = {"SP", "LCL", "ARG", "THIS", "THAT", "SCREEN", "KBD", 
+                        "R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8",
+                        "R9", "R10", "R11", "R12", "R13", "R14", "R15"};
+    int address[23] = {0, 1, 2, 3, 4, 16384, 24576, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    for (int i = 0; i < 7; i++){
+        symbol* sym = create_symbol(symbols[i], address[i]);
+        add_symbol(sym, hash_size);
+    }
+}
+
+static void label_symbols(char* label, int hash_size, int address){
+    symbol* sym = create_symbol(label, address);
+    add_symbol(sym, hash_size);
+}
+
+int variable_symbols(){
+    return -1;
+}
+
+void add_symbol(symbol* sym, int hash_size){
+    int hash = string_to_hash(sym->name, hash_size);
+    symbol* curr = symbols[hash];
+    if (symbols[hash] == NULL){
+        symbols[hash] = sym;
+    }
+    else{
+        while (curr->next != NULL){
+            curr = curr->next;
+        }
+    curr->next = sym;}
+}
+
+symbol* create_symbol(char* line, int num){
+    symbol* newSym = calloc(1, sizeof(symbol));
+    newSym->name = line;
+    newSym->address = num;
+    newSym->next = NULL;
+    return newSym;
+}
+
+symbol* create_var_symbol(char* line){
+    static int var_num = 16;
+    symbol* newSym = create_symbol(line, var_num);
+    var_num++;
+    return newSym;
+}
+
+int get_symbol_address(char* line, int hash_size){
+    symbol* sym = find_symbol(line, hash_size);
+    if (sym == NULL){
+        return -1;
+    }
+    else{
+        return sym->address;
+    }
+}
+
+symbol* find_symbol(char* line, int hash_size){
+    int hash = string_to_hash(line, hash_size);
+    char* name;
+    int compare;
+    symbol* curr_sym;
+
+    curr_sym = symbols[hash];
+    while (curr_sym != NULL){
+        name = curr_sym->name;
+        compare = strcmp(name, line);
+        if (compare == 0){
+            return curr_sym;
+        }
+        curr_sym = curr_sym->next;
+    }
+    return NULL;
+}
+
+void destroy_symbol(int hash_size){
+    for (int i = 0; i < hash_size; i++){
+        if(symbols[i] != NULL){
+            symbol* curr = symbols[i];
+            symbol* next;
+            while(curr != NULL){
+                next = curr->next;
+                free(curr);
+                curr = next;
+            }
+        }
+    }
+}
+
+void a_instruction(char* line){
+
+}
+
+void c_instruction(char* line){
+
 }
 
 //Adds all the ASCII values in a string to create a hash.
 int string_to_hash(char* string, int size){
+    int diff = 86; //Helps give a buffer between closely related chars. ex: ab, ba; ret10, ret11, ret11.
+    unsigned int ascii = 1; //Numbers get large enough they swap over to negatives if not put as an unsigned int.
+    char c;
+    while(string[0] != '\0'){
+        c = string[0];
+        ascii = ((ascii*diff) + c);
+        string++;
+    }
+    ascii = ascii*331%size;
+    return ascii;
+}
+
+/*int string_to_hash(char* string, int size){
     int diff = 66; //Helps give a buffer between closely related chars. ex: ab, ba; ret10, ret11, ret11.
     unsigned int ascii = 1; //Numbers get large enough they swap over to negatives if not put as an unsigned int.
     char c;
@@ -219,7 +313,7 @@ int string_to_hash(char* string, int size){
         string++;
     }
     return ascii;
-}
+}*/
 
 //LEGACY; KEPT ONLY TO REFACTOR
 /*
