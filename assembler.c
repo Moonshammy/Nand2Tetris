@@ -8,7 +8,7 @@
 //Struct to store each line of code until it can be printed
 typedef struct node {
     char* data; //Should only store either A or C-instruction code (D=D+M or @15)
-    void (*fp)(char*); //Points the function for whatever instruction is stored here
+    int (*fp)(char*, int); //Points the function for whatever instruction is stored here
     struct node* next;  //Points to next code
 }node_code;
 
@@ -20,7 +20,6 @@ node_code* nc_tail; //Node code tail!
 
 //Array to store symbol nodes.
 symbol** symbols;
-
 
 //Handles the file location; input file for .asm, output file for .hack
 char input_file[256]; //.asm
@@ -40,7 +39,7 @@ int operand_matrix[321]= {
      [160] = 31, [162] = 14, [160] = 119, [171] = 0, [172] = 114, [176] = 2, [178] = 19, 
      [179] = 7, [183] = 64, [189] = 66, [191] = 83, [192] = 71, [307] = 21, [320] = 85
     };
-int jump_matrix[61] = {[55] = 1, [50]=10, [40] = 11, [60] = 100, [47] = 101, [45] = 110, [57] = 111};
+int jump_matrix[61] = {[29] = 1, [24]=2, [14] = 3, [34] = 4, [21] = 5, [19] = 6, [31] = 7};
 
 int main(void){
     //Once this program is finished, main can take an ARG with appropiate file name
@@ -50,7 +49,7 @@ int main(void){
     init(hash_size);
 
     first_pass(hash_size);
-    find_symbol("RET_ADDRESS_CALL247", hash_size);
+    second_pass(hash_size);
 
     //closes out program
     exit_program(hash_size);
@@ -115,6 +114,7 @@ void first_pass(int hash_size){
     int line_num = 0; //Tracks line number to properly register symbols. 
     int num_syms = 0;
     while (line != NULL){
+        line[strlen(line)-1] = '\0';
         switch (line[0]) {
             case '@': //All A instructions start with @
                 new_node_code(++line, 'A');
@@ -127,11 +127,11 @@ void first_pass(int hash_size){
             case 'D':
                 //Pass through!
             case '0': //All C instructions start with either A, M, D, or 0
-                new_node_code(line, 'B');
+                new_node_code(line, 'C');
                 line_num++;
                 break;
             case '(': //Unregistered symbols. They need to be removed from the code and put into a register
-                line[strlen(line)-2] = '\0'; //Removes right bracket
+                line[strlen(line)-1] = '\0'; //Removes right bracket
                 ++line; //Removes left bracket
                 label_symbols(line, hash_size, line_num);
             default:
@@ -192,11 +192,11 @@ void destroy_node_code(){
 }
 
 static void init_predefined_symbols(int hash_size){
-    char* symbols[23] = {"SP", "LCL", "ARG", "THIS", "THAT", "SCREEN", "KBD", 
+    char* symbols[24] = {"SP", "LCL", "ARG", "THIS", "THAT", "SCREEN", "KBD", 
                         "R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8",
-                        "R9", "R10", "R11", "R12", "R13", "R14", "R15"};
-    int address[23] = {0, 1, 2, 3, 4, 16384, 24576, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-    for (int i = 0; i < 7; i++){
+                        "R9", "R10", "R11", "R12", "R13", "R14", "R15", "0"};
+    int address[24] = {0, 1, 2, 3, 4, 16384, 24576, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+    for (int i = 0; i < 24; i++){
         symbol* sym = create_symbol(symbols[i], address[i]);
         add_symbol(sym, hash_size);
     }
@@ -281,13 +281,85 @@ void destroy_symbol(int hash_size){
     }
 }
 
-void a_instruction(char* line){
-
+void second_pass(int hash_size){
+    int num;
+    w_file = write_file();
+    node_code* curr = nc_head;
+    while (curr != NULL){
+        num = curr->fp(curr->data, hash_size);
+        print_to_bin(num);
+        curr = curr->next;
+        
+    }
+    fclose(w_file);
 }
 
-void c_instruction(char* line){
+int a_instruction(char* line, int hash_size){
+    int num;
+    if(atoi(line) == 0){
+        num = get_symbol_address(line, hash_size);
+        if (num < 0){
+            symbol* sym = create_var_symbol(line);
+            add_symbol(sym, hash_size);
+            num = sym->address;
+        }
+    }
+    else{
+        num = atoi(line);
+    }
+    return num;
+}  
 
+int c_instruction(char* line, int hash_size){    
+    int value = 57344;
+    if (line[1] == ';'){
+        print_to_bin(value);
+    }
 }
+
+
+int c_jump(char* line){
+    return 0;
+}
+
+int c_operand(char* line){
+    return 0;
+}
+
+int c_register(char* line){
+    int value = 0;
+    while (line[0] != '\0'){
+        switch (line[0]){
+            case 'A':
+                value += 32;
+                break;
+            case 'D':
+                value += 16;
+                break;
+            case 'M':
+                value += 8;
+                break;
+        }
+        line++;
+    }
+    return value;
+}
+
+
+
+
+int print_to_bin(int dec){
+    char binary[16];
+    int num;
+    for (int i = 15; i >= 0; i--){
+        num = dec%2;
+        dec /= 2;
+        binary[i] = num + '0';
+    }
+    binary[16] = '\0';
+    fprintf(w_file, "%s\n", binary);
+}
+
 
 //Adds all the ASCII values in a string to create a hash.
 int string_to_hash(char* string, int size){
@@ -331,6 +403,19 @@ int first_pass(FILE* file, char* code[]){
     return i;
 }
 
+
+int convert_to_bin( int dec){
+    int binary = 0;
+    int counter = 1;
+    while (dec != 0){
+        int result = dec % 2;
+        dec /= 2;
+        binary += result * counter;
+        counter *= 10;
+    }
+    printf("%d", binary);
+    return binary;
+}
 
 char* next_line(FILE* file){
     char buffer[1024];
@@ -474,16 +559,6 @@ int c_jump(char* jump){
     return jump_matrix[ascii];
 }
 
-int convert_to_bin(int dec){
-    int binary = 0;
-    int counter = 1;
-    while (dec != 0){
-        int result = dec % 2;
-        dec /= 2;
-        binary += result * counter;
-        counter *= 10;
-    }
-    return binary;
-}
+
 
 */

@@ -34,16 +34,17 @@ int get_symbol_address(char* line, int hash_size);
 symbol* find_symbol(char* line, int hash_size);
 void destroy_symbol(int hash_size);
 
-int second_pass(FILE* file, char* line[]);
+void second_pass(int hash_size);
 
-void a_instruction(char* line);
-void c_instruction(char* line);
+int a_instruction(char* line, int hash_size);
+int c_instruction(char* line, int hash_size);
 
-int c_register(char* reg);
-int c_operand(char* operand);
-int c_jump(char* jump);
+int c_register(char* line);
+int c_operand(char* line);
+int c_jump(char* line);
 
+int print_to_bin(int dec);
 int string_to_hash(char* string, int size);
-int convert_to_bin(int dec);
+
 
 #endif
