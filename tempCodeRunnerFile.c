@@ -1,2 +1,2 @@
 
-                temp = strtok(line, "=");
+        printf(line);

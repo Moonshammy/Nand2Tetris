@@ -4,6 +4,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef struct node {
+    char* data; //Should only store either A or C-instruction code (D=D+M or @15)
+    int (*fp)(char*, int); //Points the function for whatever instruction is stored here
+    struct node* next;  //Points to next code
+}node_code;
+
 typedef struct sym{
     char* name;
     int address;
@@ -18,10 +24,14 @@ FILE* write_file();
 FILE* read_file();
 
 void first_pass(int hash_size);
-char* next_line();
+void seperate_code(char* line, int hash_size);
+char* next_line(FILE* file);
+char* clean_line(char* line);
 
 void new_node_code(char* data, char type);
-void transverse_code();
+node_code* create_node_code(char* data, char type);
+void add_node_code(node_code* code);
+void traverse_code();
 void destroy_node_code();
 
 static void init_predefined_symbols(int hashsize);
@@ -32,6 +42,7 @@ symbol* create_symbol(char* line, int num);
 symbol* create_var_symbol(char* line);
 int get_symbol_address(char* line, int hash_size);
 symbol* find_symbol(char* line, int hash_size);
+void traverse_symbols(int hash_size);
 void destroy_symbol(int hash_size);
 
 void second_pass(int hash_size);
@@ -44,7 +55,7 @@ int c_register(char* line);
 int c_operand(char* line);
 int c_jump(char* line);
 
-int print_to_bin(int dec);
+int print_to_bin(FILE* file, int dec);
 int string_to_hash(char* string, int size);
 
 
