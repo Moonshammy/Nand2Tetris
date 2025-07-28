@@ -35,9 +35,9 @@ FILE* w_file;
 //TODO create hash to reduce size
 int operand_matrix[321]= {
      [48] = 42, [49] = 63, [65] = 48, [68] = 12, [78] = 112, [94] = 58, [98] = 49,
-     [101] = 13, [110] = 51, [111] = 113, [113] = 15, [123] = 115, [157] = 55, [159] = 50, 
-     [160] = 31, [162] = 14, [160] = 119, [171] = 0, [172] = 114, [176] = 2, [178] = 19, 
-     [179] = 7, [183] = 64, [189] = 66, [191] = 83, [192] = 71, [307] = 21, [320] = 85
+     [101] = 13, [111] = 51, [110] = 113, [113] = 15, [123] = 115, [157] = 55, [159] = 50, 
+     [160] = 31, [162] = 14, [170] = 119, [171] = 0, [172] = 114, [176] = 2, [178] = 19, 
+     [179] = 7, [183] = 64, [189] = 66, [192] = 83, [191] = 71, [307] = 21, [270] = 85
     };
 int jump_matrix[61] = {[29] = 1, [24]=2, [14] = 3, [34] = 4, [21] = 5, [19] = 6, [31] = 7};
 
@@ -54,12 +54,12 @@ int main(void){
     //closes out program
     exit_program(hash_size);
     
+    
     printf("Program Complete"); //Let's me know the program was successful
 }
 
 void init(int hash_size){
     set_file_exts();
-    w_file = write_file();
 
     symbol** arr = calloc(hash_size, sizeof(char*));
     symbols = arr;
@@ -70,7 +70,6 @@ void exit_program(int hash_size){
 
     destroy_node_code();
     destroy_symbol(hash_size);
-    fclose(w_file);
     free(symbols);
 }
 
@@ -310,25 +309,68 @@ int a_instruction(char* line, int hash_size){
     return num;
 }  
 
-int c_instruction(char* line, int hash_size){    
-    int value = 57344;
-    if (line[1] == ';'){
-        print_to_bin(value);
+int c_instruction(char* line, int hash_size){
+    int value = 57344; //Adds the non-changing range from 2^13->2^15 to total value to properly print to file
+    char* args[3] = {};
+
+    c_parse(line, args);
+    value += c_register(args[0]);
+    value += c_operand(args[1]);
+    value += c_jump(args[2]);
+
+    return value;
+}
+
+int c_parse(char* line, char** args){
+    char* temp = line;
+    while (temp[0] != '\0'){
+        switch(temp[0]){
+            case '=':
+                args[0] = strtok(line, "=");
+                args[1] = strtok(NULL, "=");
+                args[2] = (".");
+                return 0;
+            case ';':
+                args[0] = (".");
+                args[1] = strtok(line, ";");
+                args[2] = strtok(NULL, ";");
+                return 0;
+        }
+        temp++;
     }
 }
 
 
 int c_jump(char* line){
-    return 0;
+    int value = line[0] + line[1] + line[2];
+    return jump_matrix[value%100];
 }
 
 int c_operand(char* line){
-    return 0;
+    int value = 0;
+    int temp = 0;
+    char* t = line;
+    if(line[0] == 'A' || line[0] == 'M'){
+        temp += 1;
+    }
+    if(line[0] =='M' || line[2] == 'M'){
+        value+=1;
+    }
+
+    while (line[0] != '\0' && line[0] != ';' && line[0] != '='){
+        value += line[0];
+        line++;
+    }
+    if (value == 178 || value == 190){
+        value += temp;
+    }
+    value = operand_matrix[value];
+    return value*64; //Operand matrix is in the 2^1 -> 2^7 binary value; multiplying by 64 (2^6) pushes it to the 2^7->2^13 range
 }
 
 int c_register(char* line){
     int value = 0;
-    while (line[0] != '\0'){
+    while (line[0] != '\0' && line[0] != ';' && line[0] != '='){
         switch (line[0]){
             case 'A':
                 value += 32;
@@ -345,9 +387,6 @@ int c_register(char* line){
     return value;
 }
 
-
-
-
 int print_to_bin(int dec){
     char binary[16];
     int num;
@@ -359,7 +398,6 @@ int print_to_bin(int dec){
     binary[16] = '\0';
     fprintf(w_file, "%s\n", binary);
 }
-
 
 //Adds all the ASCII values in a string to create a hash.
 int string_to_hash(char* string, int size){
@@ -374,191 +412,3 @@ int string_to_hash(char* string, int size){
     ascii = ascii*331%size;
     return ascii;
 }
-
-/*int string_to_hash(char* string, int size){
-    int diff = 66; //Helps give a buffer between closely related chars. ex: ab, ba; ret10, ret11, ret11.
-    unsigned int ascii = 1; //Numbers get large enough they swap over to negatives if not put as an unsigned int.
-    char c;
-    while(string[0] != '\0'){
-        c = string[0];
-        ascii = ((ascii*diff) + c)%size;
-        string++;
-    }
-    return ascii;
-}*/
-
-//LEGACY; KEPT ONLY TO REFACTOR
-/*
-int first_pass(FILE* file, char* code[]){
-    int i = 0;
-    char* line = next_line(file);
-    while (line != NULL){
-        strtok(line, " ");
-        if (strcmp(line, "//") && strcmp(line, " ") && strcmp(line, "\n")){
-            memcpy(code[i], line, strlen(line)+1);
-            i++;
-        }
-        line = next_line(file);
-    }
-    return i;
-}
-
-
-int convert_to_bin( int dec){
-    int binary = 0;
-    int counter = 1;
-    while (dec != 0){
-        int result = dec % 2;
-        dec /= 2;
-        binary += result * counter;
-        counter *= 10;
-    }
-    printf("%d", binary);
-    return binary;
-}
-
-char* next_line(FILE* file){
-    char buffer[1024];
-    char* str;
-    str = fgets(buffer, sizeof(buffer), file);
-        if (str != NULL){
-            return str;
-        }
-    return NULL;
-}
-
-int second_pass(FILE* file, char* line[]){
-    for (int i = 0; i < code_len; i++){
-        char* code = line[i];
-        if (code[0] == '@'){
-             a_instruction(file, code+1);
-        }
-        else{
-            c_instruction(file, code);
-        }
-    }
-}
-
-void a_instruction(FILE* file, char* line){
-    int binary = 0;
-    int num = atoi(line);
-    int counter = 1;
-    while (num != 0){
-        int result = num % 2;
-        num /= 2;
-        binary += result * counter;
-        counter *= 10;
-    }
-    fprintf(file, "%016d\n", binary);
-}
-
-void c_instruction(FILE* file, char* line){
-    char* arg1 = calloc(5, sizeof(char));
-    char* arg2 = calloc(5, sizeof(char));
-    char sym = ' ';
-    char a;
-
-    int i = 0;
-    while(*(line+1) != '\0'){
-        if(*line == '=' || *line == ';'){
-            sym = *line;
-            i = 0;
-        }
-        else{
-            a = *line;
-            switch (sym) {
-                case '=':
-                    //Pass through
-                case ';':
-                    arg2[i] = a;
-                    i++;
-                    break;
-                default:
-                    arg1[i] = a;
-                    i++;
-                    break;
-            }
-        }
-        line++;
-    }
-
-    switch (sym){
-        case '=':
-            fprintf(file, "%03d%07d%03d%03d\n", 111, c_operand(arg2), c_register(arg1), 0);
-            break;
-        case ';':
-            fprintf(file, "%03d%07d%03d%03d\n", 111, c_operand(arg1), 0, c_jump(arg2)); 
-            break;
-    }
-    
-    free(arg1);
-    free(arg2);
-}
-
-int c_register(char* reg){
-    int bin = 0;
-    while (*(reg) != '\0'){
-        if (*reg == 'A'){
-            bin += 100;
-        }
-        else if (*reg == 'D'){
-            bin += 10;
-        }
-        else if (*reg == 'M'){
-            bin += 1;
-        }
-        reg++;
-    }
-    return bin;
-}
-
-int c_operand(char* operand){
-    char a = ' ';
-    int ascii = 0;
-    int temp = 0;
-    if (operand[0] == '\0'){
-        return 0;
-    }
-    
-    //This is for the two cases where the pairs {D-M, M-D} and {D-A, A-D} have the exact same value;
-    //Increments the total value by one if A or M are the leading chars when 190 and 178 are met.
-    if(operand[0] == 'A' || operand[0] == 'M'){
-        temp += 1;
-    }
-
-    //For some reason, there's two values where the ASCII's added up equal another ASCII pair, breaking the hashtable
-    //This just adjusts all operations with M to increase the ASCII value by one.
-    if(operand[0] == 'M' || operand[2] == 'M'){
-        ascii += 1;
-    }
-
-    while (*operand != '\0'){
-        a = *operand;
-        ascii += a;
-        operand++;
-    }
-    //Adds 1 to ascii value if A or M are leading values when ASCII is 178 or 190
-    //if D is leading value, 0 is added
-    if (ascii == 178 || ascii == 190){
-        ascii += temp;
-    }
-
-    return convert_to_bin(operand_matrix[ascii]);
-}
-    
-int c_jump(char* jump){
-    if (jump[0] == '\0' ){
-        return 0;
-    }
-    int ascii = 0;
-    for (int i = 1; i < 3; i++){
-        int a = jump[i];
-        ascii += a;
-    }
-    ascii = ascii % 100; //ASCII values all in hundreds place. Reduces required array size down
-    return jump_matrix[ascii];
-}
-
-
-
-*/

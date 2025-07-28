@@ -101,7 +101,7 @@ def jump_bin(jump):
     return (f'{jump_table[jump]:03b}')
 
 def main(file):
-    pass
+    hackToAsm(file)
 
 if __name__ == "__main__":
-    main()
+    main("..\\project_files\\6\\pong\PongL")

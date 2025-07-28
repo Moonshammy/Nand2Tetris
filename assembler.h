@@ -39,6 +39,7 @@ void second_pass(int hash_size);
 int a_instruction(char* line, int hash_size);
 int c_instruction(char* line, int hash_size);
 
+int c_parse(char* line, char** args);
 int c_register(char* line);
 int c_operand(char* line);
 int c_jump(char* line);

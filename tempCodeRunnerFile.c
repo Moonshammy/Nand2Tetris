@@ -1,2 +1,2 @@
 
-                break;
+                temp = strtok(line, "=");
