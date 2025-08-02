@@ -5,17 +5,41 @@
 
 #include "parser.h"
 
- //For commands queue
+typedef struct{
+    const char* command;
+    C_Type type;
+} types;
 
+const types types_map[] = {
+    {"add", C_ARITHMETIC},
+    {"sub", C_ARITHMETIC},
+    {"neg", C_ARITHMETIC},
+    {"and", C_ARITHMETIC},
+    {"or", C_ARITHMETIC},
+    {"not", C_ARITHMETIC},
+    {"gt", C_JUMP},
+    {"lt", C_JUMP},
+    {"eq", C_JUMP},
+    {"push", C_PUSH},
+    {"pop", C_POP},
+    {"label", C_LABEL},
+    {"goto", C_GOTO},
+    {"if-goto", C_IF},
+    {"function", C_FUNCTION},
+    {"call", C_CALL},
+    {"return", C_RETURN},
+
+};
 
 comm* parse_vm(char* dir){
-    comm* head;
+    static comm* head;
     char** files;
     
     files = get_files(dir);
-    parse_files(head, files);
+    head = parse_files(head, files);
     
     free(files);
+
     return head;
 }
 
@@ -45,15 +69,16 @@ char** get_files(char* folder_path){
     return files;
 }
 
-void parse_files(comm* head, char** files){
+comm* parse_files(comm* head, char** files){
     int i = 0;
     FILE* file;
     while (files[i] != NULL){
         file = open_file(files[i]);
-        parse_file(head, file);
+        head = parse_file(head, file);
         fclose(file);
         i++;
     }
+    return head;
 }
 
 FILE* open_file(char* file_path){
@@ -65,17 +90,20 @@ FILE* open_file(char* file_path){
     return file;
 }
 
-void parse_file(comm* head, FILE* file){
+comm* parse_file(comm* head, FILE* file){
     char* line = next_line(file);
     char* s_line[3];
+    C_Type type;
     while (line != NULL){
         line = strip_spacing(line);
         if (parse_string(line, s_line) != NULL){
-            printf("%s %s %s\n", s_line[0], s_line[1], s_line[2]);
+            type = get_command_type(s_line[0]);
+            head = add_to_queue(s_line, type, head);
         } 
         line = next_line(file);
     }
     free(line);
+    return head;
 }
 
 char* next_line(FILE* file){
@@ -133,11 +161,41 @@ char* parse_string(char* line, char** s_line){
     return "Pass";
 }
 
-C_Type get_command_type(char* line);
+C_Type get_command_type(char* line){
+    for (int i = 0; i < 17; i++){
+        if (strcmp(line, types_map[i].command) == 0){
+            return types_map[i].type;
+        }
+    }
+}
 
-void add_to_queue(char** s_line, C_Type type);
-comm create_node(char** s_line, C_Type);
-void add_node(comm node);
+comm* add_to_queue(char** s_line, C_Type type, comm* head){
+    comm* node = create_node(s_line, type);
+    head = add_node(node, head);
+    return head;
+}
+comm* create_node(char** s_line, C_Type type){
+    comm* new_node = calloc(1, sizeof(comm));
+    new_node->c_type = type;
+    new_node->command = s_line[0];
+    new_node->arg1 = s_line[1];
+    new_node->arg2 = s_line[2];
+    new_node->next = NULL;
+}
+
+comm* add_node(comm* node, comm* head){
+    comm* curr = head;
+    if (head == NULL){
+        head = node;
+    }
+    else{
+        while (curr->next != NULL){
+            curr = curr->next;
+        }
+        curr->next = node;
+    }
+    return head;
+}
 
 char* directory_copy(char* folder_path, char* src){
     int len = strlen(folder_path)+strlen(src)+2;
@@ -157,8 +215,14 @@ char* directory_copy(char* folder_path, char* src){
 }
 
 void main(){
-    comm* test;
+    comm* head;
     char* dir = "..\\..\\project_files\\8\\StaticsTest";
-    parse_vm(dir);
+    head = parse_vm(dir);
+    comm* curr = head;
+    while(curr != NULL){
+        printf("ENUM: %d, command: %s, arg1: %s, arg2: %s\n", curr->c_type, curr->command, curr->arg1, curr->arg2);
+        curr = curr->next;
+    }
     printf("Program complete\n");
+
 }
