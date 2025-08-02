@@ -26,8 +26,9 @@ typedef struct COMM {
 
 comm* parse_files(char* dir);
 
-void get_files(char* dir);
-FILE* open_file(char* dir);
+char** get_files(char* folder_path);
+char* string_copy(char* src);
+FILE* open_file(char* file_path);
 
 void parse_file(FILE* file);
 char* next_line(FILE* file);
