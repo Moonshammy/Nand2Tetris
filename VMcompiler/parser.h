@@ -24,20 +24,24 @@ typedef struct COMM {
     struct COMM* next;
 } comm;
 
-comm* parse_files(char* dir);
+comm* parse_vm(char* dir);
 
 char** get_files(char* folder_path);
-char* string_copy(char* src);
+
+
+void parse_files(comm* head, char** files);
 FILE* open_file(char* file_path);
 
-void parse_file(FILE* file);
+void parse_file(comm* head, FILE* file);
 char* next_line(FILE* file);
 char* strip_spacing(char* line);
-char** parse_string(char* line);
+char* parse_string(char* line, char** s_line);
 C_Type get_command_type(char* line);
 
 void add_to_queue(char** s_line, C_Type type);
 comm create_node(char** s_line, C_Type);
 void add_node(comm node);
+
+char* directory_copy(char* folder_path, char* src);
 
 #endif
