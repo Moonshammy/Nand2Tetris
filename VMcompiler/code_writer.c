@@ -55,6 +55,19 @@ void translate_line(comm* head, FILE* file){
     }
 }
 
+void push(FILE* file){
+    fprintf(file, "@SP\n");
+    fprintf(file, "AM=M+1\n");
+    fprintf(file, "A=A-1\n");
+    fprintf(file, "M=D\n");
+}
+void pop(FILE* file){
+    fprintf(file, "@SP\n");
+    fprintf(file, "AM=M-1\n");
+    fprintf(file, "D=M\n");
+}
+
+
 void write_arithmetic(comm* head, FILE* file){
     fprintf(file, "@SP\n");
     if (strcmp(head->command, "not") || strcmp(head->command, "net")){
@@ -74,10 +87,7 @@ void write_jump(comm* head, FILE* file);
 void write_push(comm* head, FILE* file){
     if(strcmp(head->arg1, "constant") == 0){
         get_constant(head->arg2, file);
-        fprintf(file, "@SP\n");
-        fprintf(file, "AM=M+1\n");
-        fprintf(file, "A=A-1\n");
-        fprintf(file, "M=D\n");
+        push(file);
     }
 }
 

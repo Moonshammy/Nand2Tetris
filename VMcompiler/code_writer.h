@@ -6,6 +6,9 @@
 void vm_translator(comm* head, char* dir);
 void translate_line(comm* head, FILE* file);
 
+void push(FILE* file);
+void pop(FILE* file);
+
 void write_arithmetic(comm* head, FILE* file);
 void write_jump(comm* head, FILE* file);
 
