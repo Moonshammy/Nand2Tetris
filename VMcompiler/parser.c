@@ -213,16 +213,3 @@ char* directory_copy(char* folder_path, char* src){
     }
     return string;
 }
-
-void main(){
-    comm* head;
-    char* dir = "..\\..\\project_files\\8\\StaticsTest";
-    head = parse_vm(dir);
-    comm* curr = head;
-    while(curr != NULL){
-        printf("ENUM: %d, command: %s, arg1: %s, arg2: %s\n", curr->c_type, curr->command, curr->arg1, curr->arg2);
-        curr = curr->next;
-    }
-    printf("Program complete\n");
-
-}
