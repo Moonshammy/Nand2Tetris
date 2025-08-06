@@ -13,7 +13,7 @@ typedef struct{
 const map commands_map[6] = { {"add", "D+M"}, {"sub", "M-D"}, {"and", "D&M"}, {"or", "D|M"}, {"not", "!D"}, {"neg", "-D"}};
 const map address_name_map[4] = {{"this", "@THIS"}, {"that", "@THAT"}, {"local", "@LCL"}, {"argument", "@ARG"}};
 const map temp_map[8] = {{"0", "@R5"}, {"1", "@R6"}, {"2", "@R7"}, {"3", "@R8"}, {"4", "@R9"}, {"5", "@R10"}, {"6", "@R11"}, {"7", "@R12"}};
-char* static_map[240];
+int static_map[240];
 
 
 
@@ -199,12 +199,10 @@ void write_push(comm* head, FILE* file){
         }
         else if(strcmp(arg1, "pointer") == 0){
             get_pointer_address(arg2, file);
-            fprintf(file, "A=M\n");
+            fprintf(file, "D=M\n");
         }
         else if (strcmp(arg1, "static") == 0){
-            printf("static\n");
             get_static_address(arg2, file);
-            fprintf(file, "A=M\n");
         }
         fprintf(file, "D=M\n");
     }
@@ -229,11 +227,9 @@ void write_pop(comm* head, FILE* file){
         }
         else if(strcmp(arg1, "pointer") == 0){
             get_pointer_address(arg2, file);
-            fprintf(file, "A=M\n");
         }
         else if (strcmp(arg1, "static") == 0){
             get_static_address(arg2, file);
-            fprintf(file, "A=M\n");
         }
         fprintf(file, "M=D\n");
     }
@@ -248,20 +244,17 @@ void write_pop(comm* head, FILE* file){
 }
 
 void get_pointer_address(char* arg2, FILE* file){
-    fprintf(file, address_name_map[atoi(arg2)].value);
-    fprintf(file, "\n");
+    fprintf(file, "%s\n", address_name_map[atoi(arg2)].value);
 }
 
 void get_static_address(char* arg2, FILE* file){
     static int addr = 16;
     int i = atoi(arg2);
-    if (static_map[i] == NULL){
-        static_map[i] = arg2;
+    if (static_map[i] == 0){
+        static_map[i] = addr;
         addr++;
     }
-    fprintf(file, "@");
-    fprintf(file, static_map[i]);
-    fprintf(file, "\n");
+    fprintf(file, "@%d\n", static_map[i]);
 }
 
 void get_temp_value(char* value, FILE* file){
