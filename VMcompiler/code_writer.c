@@ -18,10 +18,48 @@ char* static_map[240];
 
 
 void vm_translator(comm* head, char* dir){ 
+    
     FILE* w_file = fopen(dir, "w");
+    //init(w_file);
     while (head != NULL){
         translate_line(head, w_file);
         head = head->next;
+    }
+}
+
+void init(FILE* file){
+    bootstrap_init(file);
+    jump_init(file);
+    sys_init(file);
+}
+
+void bootstrap_init(FILE* file){
+    get_constant("256", file);
+    fprintf(file, "@SP\n");
+    fprintf(file, "M=D");
+}
+
+void sys_init(FILE* file){}
+
+void jump_init(FILE* file){
+    char* start[] = {"start_gt", "start_lt", "start_eq"};
+    char* true[] = {"true_gt", "true_lt", "true_eq"};
+    char* end[] = {"end_gt", "end_lt", "end_eq"};
+    char* type[] = {"JGT", "JLT", "JEQ"};
+    for (int i = 0; i < 3; i++){
+        fprintf(file, "\n//start of %s\n", type[i]);
+        fprintf(file, "(%s)\n", start[i]);
+        fprintf(file, "@%s\n", true[i]);
+        fprintf(file, "D;%s\n", type[i]);
+        fprintf(file, "DM=0\n");
+        fprintf(file, "@%s\n", end[i]);
+        fprintf(file, "0;JMP\n");
+        fprintf(file, "(%s)\n", true[i]);
+        fprintf(file, "DM=-1\n");
+        fprintf(file, "(%s)\n", end[i]);
+        fprintf(file, "@R13\n");
+        fprintf(file, "A=M\n");
+        fprintf(file, "0;JMP\n");
     }
 }
 
@@ -31,7 +69,7 @@ void translate_line(comm* head, FILE* file){
             write_arithmetic(head, file);
             break;
         case (C_JUMP):
-            printf("Jump\n");
+            write_jump(head, file);
             break;
         case (C_PUSH):
             write_push(head, file);
@@ -82,7 +120,7 @@ void get_constant(char* value, FILE* file){
 void write_arithmetic(comm* head, FILE* file){
     fprintf(file, "\n//%s\n", head->command);  //DEBUG
     fprintf(file, "@SP\n");
-    if (strcmp(head->command, "not") || strcmp(head->command, "neg")){
+    if (strcmp(head->command, "not") != 0 && strcmp(head->command, "neg") != 0){
         fprintf(file, "AM=M-1\n");
         fprintf(file, "D=M\n");
         fprintf(file, "A=A-1\n");
@@ -95,7 +133,61 @@ void write_arithmetic(comm* head, FILE* file){
     fprintf(file, "\n");
 }
 
-void write_jump(comm* head, FILE* file){}
+void write_jump(comm* head, FILE* file){
+    char* jump;
+    static int counter = 0;
+    char* jump_map[] = {"gt", "JGT", "lt", "JLT", "eq", "JEQ"};
+    
+    
+    for (int i = 0; i < 6; i += 2){
+        if (strcmp(jump_map[i], head->command) == 0){
+            jump = jump_map[i+1];
+        }
+    }
+    fprintf(file, "\n//Start jump %s\n", jump);
+    fprintf(file, "@SP\n");
+    fprintf(file, "AM=M-1\n");
+    fprintf(file, "D=M\n");
+    fprintf(file, "A=A-1\n");
+    fprintf(file, "D=M-D\n");
+    fprintf(file, "@true%d\n", counter);
+    fprintf(file, "D;%s\n", jump);
+    fprintf(file, "D=0\n");
+    fprintf(file, "@end_jump%d\n", counter);
+    fprintf(file, "0;JMP\n");
+    fprintf(file, "(true%d)\n", counter);
+    fprintf(file, "D=-1\n");
+    fprintf(file, "(end_jump%d)\n", counter);
+    fprintf(file, "@SP\n");
+    fprintf(file, "A=M-1\n");
+    fprintf(file, "M=D\n");
+    counter++;
+}
+
+//Temp hold
+/*void write_jump(comm* head, FILE* file){
+    static int rtn = 0;
+    char* jump;
+    char* jump_map[] = {"gt", "JGT", "lt", "JLT", "eq", "JEQ"};
+    for (int i = 0; i < 6; i += 2){
+        if (strcmp(jump_map[i], head->command) == 0){
+            jump = jump_map[i+1];
+        }
+    }
+    fprintf(file, "\n//Start of jump %s\n", jump);
+    fprintf(file, "@returnjump%d\n", rtn);
+    fprintf(file, "D=A\n");
+    fprintf(file, "@R13\n");
+    fprintf(file, "M=D\n");
+    fprintf(file, "@SP\n");
+    fprintf(file, "AM=M-1\n");
+    fprintf(file, "D=M\n");
+    fprintf(file, "A=A-1\n");
+    fprintf(file, "MD=M-D\n");
+    fprintf(file, "@start_%s\n", head->command);
+    fprintf(file, "(returnjump%d)\n", rtn);
+    rtn++;
+}*/
 
 void write_push(comm* head, FILE* file){
     char* arg1 = head->arg1;

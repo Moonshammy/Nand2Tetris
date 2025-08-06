@@ -4,6 +4,10 @@
 #include "parser.h"
 
 void vm_translator(comm* head, char* dir);
+void init(FILE* file);
+void bootstrap_init(FILE* file);
+void sys_init(FILE* file);
+void jump_init(FILE* file);
 void translate_line(comm* head, FILE* file);
 
 void push(FILE* file);
