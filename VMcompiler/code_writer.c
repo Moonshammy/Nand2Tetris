@@ -18,8 +18,7 @@ const map address_name_map[4] = {{"this", "@THIS"}, {"that", "@THAT"}, {"local",
 
 void vm_translator(comm* head, char* dir){ 
     
-    init(w_file);
-    
+    init(w_file, dir);
     while (head != NULL){
         translate_line(head, w_file);
         head = head->next;
@@ -27,7 +26,8 @@ void vm_translator(comm* head, char* dir){
     end(w_file);
 }
 
-void init(FILE* file){
+void init(FILE* file, char* dir){
+    set_file(dir);
     bootstrap_init(file);
     //jump_init(file);
 }
@@ -51,7 +51,7 @@ void asmprint(const char* fmt, ...){
                 break;
             case 's':
                 char* s = va_arg(args, char*);
-                fprintf(w_file, "%s", d);
+                fprintf(w_file, "%s", s);
                 break;
             default:
                 puts("Unknown formatter!");
@@ -65,7 +65,7 @@ END:
 
 
 void bootstrap_init(FILE* file){
-    get_constant("256", file);
+    constant("256", file);
     fprintf(file, "@SP\n");
     fprintf(file, "M=D\n");
     fprintf(file, "@Sys.init\n");
@@ -149,7 +149,7 @@ void pop(FILE* file){
     fprintf(file, "D=M\n");
 }
 
-void get_constant(char* value, FILE* file){
+void constant(char* value, FILE* file){
     fprintf(file, "@");
     fprintf(file, value);
     fprintf(file, "\n");
@@ -244,10 +244,10 @@ void write_push(char* arg1, char* arg2, FILE* file){;
         fprintf(file, "D=M\n");
     }
     else if (strcmp(arg1, "constant") == 0){
-        get_constant(arg2, file);
+        constant(arg2, file);
     }
     else{
-        get_constant(arg2, file);
+        constant(arg2, file);
         get_address_value(arg1, file);
     }
     push(file);
@@ -269,7 +269,7 @@ void write_pop(char* arg1, char* arg2, FILE* file){
         fprintf(file, "M=D\n");
     }
     else{
-        get_constant(arg2, file);
+        constant(arg2, file);
         store_address_index(arg1, file);
         pop(file);
         fprintf(file, "@R13\n");
@@ -356,7 +356,7 @@ void write_function(char* arg1, char* arg2, FILE* file){
 
 void zero_local(char* arg2, FILE* file){
     int n = atoi(arg2);
-    get_constant("0", file);
+    constant("0", file);
     for (int i = 0; i < n; i++){
         push(file);
     }
@@ -372,7 +372,7 @@ void write_return(FILE* file){
     fprintf(file, "@R14\n");
     fprintf(file, "M=D\n");
 
-    get_constant("5", file);
+    constant("5", file);
     fprintf(file, "@R14\n");
     fprintf(file, "A=M-D\n");
     fprintf(file, "D=M\n");
@@ -390,7 +390,7 @@ void write_return(FILE* file){
     fprintf(file, "M=D\n");
 
     for (int i = 0; i < 4; i +=2 ){
-        get_constant(map[i+1], file);
+        constant(map[i+1], file);
         fprintf(file, "@R14\n");
         fprintf(file, "A=M-D\n");
         fprintf(file, "D=M\n");
@@ -416,7 +416,7 @@ static int counter = 0;
         fprintf(file, "D=M\n");
         push(file);
     }
-    get_constant(arg2, file);
+    constant(arg2, file);
     fprintf(file, "@5\n");
     fprintf(file, "D=D+A\n");
     fprintf(file, "@SP\n");
