@@ -3,8 +3,8 @@
 
 void main(){
     comm* head;
-    char* dir = "..\\..\\project_files\\7\\BasicTest";
-    char* dir2 = "..\\..\\project_files\\7\\BasicTest\\BasicTest.asm";
+    char* dir = "..\\..\\project_files\\8\\FibonacciElement";
+    char* dir2 = "..\\..\\project_files\\8\\FibonacciElement\\FibonacciElement.asm";
     head = parse_vm(dir);
     vm_translator(head, dir2);
 

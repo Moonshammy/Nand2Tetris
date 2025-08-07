@@ -133,7 +133,7 @@ def write_init():
     constant('256')
     ROM.append('@SP')
     ROM.append('M=D')
-    write_call(['C_CALL','Sys.init', '0'])
+    write_call(['C_CALL', 'Sys.init', '0'])
 
 def bool_init():
     tests = ['JEQ','JGT','JLT']
