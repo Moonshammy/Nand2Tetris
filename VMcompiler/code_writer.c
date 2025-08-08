@@ -29,7 +29,7 @@ void vm_translator(comm* head, char* dir){
 void init(char* dir){
     set_file(dir);
     bootstrap_init();
-    //jump_init();
+    jump_init();
 }
 
 void set_file(char* dir){
@@ -69,8 +69,7 @@ void bootstrap_init(){
     constant("256");
     asmprint("s", "@SP");
     asmprint("s", "M=D");
-    asmprint("s", "@Sys.init");
-    asmprint("s", "0;JMP");
+    write_call("Sys.init", "0");
 }
 
 void end(){
@@ -88,14 +87,22 @@ void jump_init(){
     for (int i = 0; i < 3; i++){
         asmprint("ss", "\n//start of ", type[i]); //DEBUG
         asmprint("sss", "(", start[i], ")");
+        asmprint("s", "@SP");
+        asmprint("s", "AM=M-1");
+        asmprint("s", "D=M");
+        asmprint("s", "A=A-1");
+        asmprint("s", "D=M-D");
         asmprint("ss", "@", true[i]);
         asmprint("ss", "D;", type[i]);
-        asmprint("s", "DM=0");
+        asmprint("s", "D=0");
         asmprint("ss", "@", end[i]);
         asmprint("s", "0;JMP");
         asmprint("sss", "(", true[i], ")");
-        asmprint("s", "DM=-1");
+        asmprint("s", "D=-1");
         asmprint("sss", "(", end[i], ")");
+        asmprint("s", "@SP");
+        asmprint("s", "A=M-1");
+        asmprint("s", "M=D");
         asmprint("s", "@R13");
         asmprint("s", "A=M");
         asmprint("s", "0;JMP");
@@ -104,6 +111,7 @@ void jump_init(){
 
 void translate_line(comm* head){
     printf("%s %s %s\n", head->command, head->arg1, head->arg2);
+    static char* curr_func;
     switch (head->c_type){
         case (C_ARITHMETIC):
             write_arithmetic(head->command);
@@ -112,10 +120,10 @@ void translate_line(comm* head){
             write_jump(head->command);
             break;
         case (C_PUSH):
-            write_push(head->arg1, head->arg2);
+            write_push(head->arg1, head->arg2, curr_func);
             break;
         case (C_POP):
-            write_pop(head->arg1, head->arg2);
+            write_pop(head->arg1, head->arg2, curr_func);
             break;
         case (C_LABEL):
             write_label(head->arg1);
@@ -127,6 +135,7 @@ void translate_line(comm* head){
             write_if(head->arg1);
             break;
         case (C_FUNCTION):
+            curr_func = head->arg1;
             write_function(head->arg1, head->arg2);
             break;
         case (C_RETURN):
@@ -170,62 +179,26 @@ void write_arithmetic(char* command){
 }
 
 void write_jump(char* command){
+    static int rtn = 0;
     char* jump;
-    static int counter = 0;
     char* jump_map[] = {"gt", "JGT", "lt", "JLT", "eq", "JEQ"};
-    
-    
     for (int i = 0; i < 6; i += 2){
         if (strcmp(jump_map[i], command) == 0){
             jump = jump_map[i+1];
         }
     }
-    asmprint("ss", "\n//Start jump ", jump); //DEBUG
-    asmprint("s", "@SP");
-    asmprint("s", "AM=M-1");
-    asmprint("s", "D=M");
-    asmprint("s", "A=A-1");
-    asmprint("s", "D=M-D");
-    asmprint("sd", "@true", counter);
-    asmprint("ss", "D;", jump);
-    asmprint("s", "D=0");
-    asmprint("sd", "@end_jump", counter);
-    asmprint("s", "0;JMP");
-    asmprint("sds", "(true", counter, ")");
-    asmprint("s", "D=-1");
-    asmprint("sds", "(end_jump", counter, ")");
-    asmprint("s", "@SP");
-    asmprint("s", "A=M-1");
+    asmprint("ss", "\n//Start of jump ", jump); //DEBUG
+    asmprint("sd", "@returnjump", rtn);
+    asmprint("s", "D=A");
+    asmprint("s", "@R13");
     asmprint("s", "M=D");
-    counter++;
+    asmprint("ss", "@start_", command);
+    asmprint("s", "0;JMP");
+    asmprint("sds", "(returnjump", rtn, ")");
+    rtn++;
 }
 
-//Temp hold
-/*void write_jump(comm* head, FILE* file){
-    static int rtn = 0;
-    char* jump;
-    char* jump_map[] = {"gt", "JGT", "lt", "JLT", "eq", "JEQ"};
-    for (int i = 0; i < 6; i += 2){
-        if (strcmp(jump_map[i], head->command) == 0){
-            jump = jump_map[i+1];
-        }
-    }
-    fprintf(file, "\n//Start of jump %s\n", jump); //DEBUG
-    fprintf(file, "@returnjump%d\n", rtn);
-    fprintf(file, "D=A\n");
-    fprintf(file, "@R13\n");
-    fprintf(file, "M=D\n");
-    fprintf(file, "@SP\n");
-    fprintf(file, "AM=M-1\n");
-    fprintf(file, "D=M\n");
-    fprintf(file, "A=A-1\n");
-    fprintf(file, "MD=M-D\n");
-    fprintf(file, "@start_%s\n", head->command);
-    fprintf(file, "(returnjump%d)\n", rtn);
-    rtn++;
-}*/
-
-void write_push(char* arg1, char* arg2){;
+void write_push(char* arg1, char* arg2, char* curr_func){;
     asmprint("ssss", "\n//Push ", arg1, " ", arg2); //DEBUG
     if (strcmp(arg1, "temp") == 0 || strcmp(arg1, "static") == 0 || strcmp(arg1, "pointer") == 0){
         if (strcmp(arg1, "temp") == 0){
@@ -236,7 +209,7 @@ void write_push(char* arg1, char* arg2){;
             asmprint("s", "D=M");
         }
         else if (strcmp(arg1, "static") == 0){
-            get_static_address(arg2);
+            get_static_address(arg2, curr_func);
         }
         asmprint("s", "D=M");
     }
@@ -250,7 +223,7 @@ void write_push(char* arg1, char* arg2){;
     push();
 }
 
-void write_pop(char* arg1, char* arg2){
+void write_pop(char* arg1, char* arg2, char* curr_func){
     asmprint("ssss", "\n//Pop ", arg1, " ", arg2); //DEBUG
     if (strcmp(arg1, "temp") == 0 || strcmp(arg1, "static") == 0 || strcmp(arg1, "pointer") == 0){
         pop();
@@ -261,7 +234,7 @@ void write_pop(char* arg1, char* arg2){
             get_pointer_address(arg2);
         }
         else if (strcmp(arg1, "static") == 0){
-            get_static_address(arg2);
+            get_static_address(arg2, curr_func);
         }
         asmprint("s", "M=D");
     }
@@ -279,15 +252,45 @@ void get_pointer_address(char* arg2){
     asmprint("s", address_name_map[atoi(arg2)].value);
 }
 
-void get_static_address(char* arg2){
-    static int static_map[240];
-    static int addr = 16;
-    int i = atoi(arg2);
-    if (static_map[i] == 0){
-        static_map[i] = addr;
-        addr++;
+void get_static_address(char* arg2, char* curr_func){
+    static char* var_map[256];
+    static int address = 0;
+
+    char* func;
+    func = static_name(arg2, curr_func);
+    
+    
+    for (int i = 0; i < address; i++){
+        if (strcmp(func, var_map[i]) == 0){
+            printf("%s\n\n", func);
+            asmprint("sd", "@", i+16);
+            goto END;
+        }
     }
-    asmprint("sd", "@", static_map[i]);
+
+    var_map[address] = func;
+    asmprint("sd", "@", address+16);
+    address++;
+END:
+}
+
+char* static_name(char* num, char* func){
+    char* str = func;
+    while (str[0] != '.' && str[0] != '\0'){
+        str++;
+    }
+    func[strlen(func) - strlen(str)] = '\0';
+    
+    int len = strlen(func) + 1;
+    char* string = calloc(len, sizeof(char));
+
+    for (int i = 0; i < strlen(func); i++){
+        string[i] = func[i];
+    }
+    string[len-1] = num[0];
+
+    return string;
+
 }
 
 void get_temp_value(char* value){
@@ -357,15 +360,17 @@ void zero_local(char* arg2){
 }
 
 void write_return(){
-    char* map[] = {"@THAT", "1", "@THIS", "2", "ARG", "3", "LCL", "4"};
+    char* map[] = {"@THAT", "1", "@THIS", "2", "@ARG", "3", "@LCL", "4"};
 
     asmprint("s", "\n//return"); //DEBUG
 
+    //Frame(R14) = LCL
     asmprint("s", "@LCL");
     asmprint("s", "D=M");
     asmprint("s", "@R14");
     asmprint("s", "M=D");
 
+    //RTN = frame-5
     constant("5");
     asmprint("s", "@R14");
     asmprint("s", "A=M-D");
@@ -373,17 +378,19 @@ void write_return(){
     asmprint("s", "@R15");
     asmprint("s", "M=D");
 
+    //*ARG = pop(). Puts return value at ARG
     pop();
     asmprint("s", "@ARG");
     asmprint("s", "A=M");
     asmprint("s", "M=D");
 
+    //Restores SP to caller
     asmprint("s", "@ARG");
     asmprint("s", "D=M+1");
     asmprint("s", "@SP");
     asmprint("s", "M=D");
 
-    for (int i = 0; i < 4; i +=2 ){
+    for (int i = 0; i < 8; i +=2 ){
         constant(map[i+1]);
         asmprint("s", "@R14");
         asmprint("s", "A=M-D");
@@ -401,15 +408,21 @@ void write_call(char* arg1, char* arg2){
 static int counter = 0;
     char* p[] = {"@LCL", "@ARG", "@THIS", "@THAT"}; 
 
-    asmprint("ssss", "\n//call ", arg1, " ", arg2);
+    asmprint("ssss", "\n//call ", arg1, " ", arg2); //DEBUG
+
+    //Push return address to stack
     asmprint("sd", "@return", counter);
     asmprint("s", "D=A");
     push();
+
+    //Push LCL, ARG, THIS, THAT to stack
     for (int i = 0; i < 4; i++){
         asmprint("s", p[i]);
         asmprint("s", "D=M");
         push();
     }
+
+    //Set ARG to SP-n-5; where n is number of args (arg2).
     constant(arg2);
     asmprint("s", "@5");
     asmprint("s", "D=D+A");
@@ -417,11 +430,18 @@ static int counter = 0;
     asmprint("s", "D=M-D");
     asmprint("s", "@ARG");
     asmprint("s", "M=D");
-    asmprint("s", arg1);
+
+    //Sets LCL = SP
+    asmprint("s", "@SP");
+    asmprint("s", "D=M");
+    asmprint("s", "@LCL");
+    asmprint("s", "M=D");
+
+    //Jump to call
+    asmprint("ss", "@", arg1);
     asmprint("s", "0;JMP");
     asmprint("sds", "(return", counter, ")");
     counter++;
-    
 }
 
 char* get_command_asm(char* line){

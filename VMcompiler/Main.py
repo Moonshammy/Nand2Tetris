@@ -5,9 +5,9 @@ parsed_program = []
 
 def main():
     #These three variables are split merely to make changing program and files easier
-    projects = 'project_files\\'
+    projects = '..\\..\\project_files\\'
     project = '8\\'
-    program = 'StaticsTest'
+    program = 'NestedCall'
     #program = input() #If you wnat to manually enter the program folder... can't change any other directory though
     directory = projects + project + program #Creates the single string directory path to the folder with program in it
 

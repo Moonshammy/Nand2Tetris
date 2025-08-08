@@ -99,7 +99,7 @@ comm* parse_file(comm* head, FILE* file){
         if (parse_string(line, s_line) != NULL){
             type = get_command_type(s_line[0]);
             head = add_to_queue(s_line, type, head);
-        } 
+        }
         line = next_line(file);
     }
     free(line);

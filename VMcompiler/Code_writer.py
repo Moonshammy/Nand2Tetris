@@ -1,4 +1,4 @@
-from Assembler import hackToAsm
+#from Assembler import hackToAsm
 
 ROM = []
 operators = {'add': 'D+M', 'sub': 'M-D', 'and': 'D&M', 'or': 'D|M', 'not': '!D', 'neg': '-D'}
@@ -21,7 +21,7 @@ def code_writer(code, directory, program):
 
     #Writing bits to make .asm and .hack files
     write_to_file(program)
-    hackToAsm(program)
+    #hackToAsm(program)
     
 #Writes .asm file line by line
 def write_to_file(program):

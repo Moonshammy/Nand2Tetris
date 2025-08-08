@@ -22,11 +22,13 @@ void constant(char* value);
 void write_arithmetic(char* command);
 void write_jump(char* command);
 
-void write_push(char* arg1, char* arg2);
-void write_pop(char* arg1, char* arg2);
+void write_push(char* arg1, char* arg2, char* curr_func);
+void write_pop(char* arg1, char* arg2, char* curr_func);
 
 void get_pointer_address(char* arg2);
-void get_static_address(char* arg2);
+void get_static_address(char* arg2, char* curr_func);
+char* static_name(char* num, char* func);
+
 void get_temp_value(char* value);
 void get_address_value(char* value);
 void store_address_index(char* value);
