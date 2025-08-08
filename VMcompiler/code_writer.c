@@ -18,18 +18,18 @@ const map address_name_map[4] = {{"this", "@THIS"}, {"that", "@THAT"}, {"local",
 
 void vm_translator(comm* head, char* dir){ 
     
-    init(w_file, dir);
+    init(dir);
     while (head != NULL){
-        translate_line(head, w_file);
+        translate_line(head);
         head = head->next;
     }
-    end(w_file);
+    end();
 }
 
-void init(FILE* file, char* dir){
+void init(char* dir){
     set_file(dir);
-    bootstrap_init(file);
-    //jump_init(file);
+    bootstrap_init();
+    //jump_init();
 }
 
 void set_file(char* dir){
@@ -64,115 +64,112 @@ END:
 }
 
 
-void bootstrap_init(FILE* file){
-    constant("256", file);
-    fprintf(file, "@SP\n");
-    fprintf(file, "M=D\n");
-    fprintf(file, "@Sys.init\n");
-    fprintf(file, "0;JMP\n");
+void bootstrap_init(){
+    asmprint("s", "//Bootstrap");  //DEBUG
+    constant("256");
+    asmprint("s", "@SP");
+    asmprint("s", "M=D");
+    asmprint("s", "@Sys.init");
+    asmprint("s", "0;JMP");
 }
 
-void end(FILE* file){
-    fprintf(file, "\n//End of Line\n");
-    fprintf(file, "@program_end\n");
-    fprintf(file, "(program_end)\n");
-    fprintf(file, "0;JMP\n");
+void end(){
+    asmprint("s", "\n//End of Line");  //DEBUG
+    asmprint("s", "@program_end");
+    asmprint("s", "(program_end)");
+    asmprint("s", "0;JMP");
 }
 
-void jump_init(FILE* file){
+void jump_init(){
     char* start[] = {"start_gt", "start_lt", "start_eq"};
     char* true[] = {"true_gt", "true_lt", "true_eq"};
     char* end[] = {"end_gt", "end_lt", "end_eq"};
     char* type[] = {"JGT", "JLT", "JEQ"};
     for (int i = 0; i < 3; i++){
-        fprintf(file, "\n//start of %s\n", type[i]);
-        fprintf(file, "(%s)\n", start[i]);
-        fprintf(file, "@%s\n", true[i]);
-        fprintf(file, "D;%s\n", type[i]);
-        fprintf(file, "DM=0\n");
-        fprintf(file, "@%s\n", end[i]);
-        fprintf(file, "0;JMP\n");
-        fprintf(file, "(%s)\n", true[i]);
-        fprintf(file, "DM=-1\n");
-        fprintf(file, "(%s)\n", end[i]);
-        fprintf(file, "@R13\n");
-        fprintf(file, "A=M\n");
-        fprintf(file, "0;JMP\n");
+        asmprint("ss", "\n//start of ", type[i]); //DEBUG
+        asmprint("sss", "(", start[i], ")");
+        asmprint("ss", "@", true[i]);
+        asmprint("ss", "D;", type[i]);
+        asmprint("s", "DM=0");
+        asmprint("ss", "@", end[i]);
+        asmprint("s", "0;JMP");
+        asmprint("sss", "(", true[i], ")");
+        asmprint("s", "DM=-1");
+        asmprint("sss", "(", end[i], ")");
+        asmprint("s", "@R13");
+        asmprint("s", "A=M");
+        asmprint("s", "0;JMP");
     }
 }
 
-void translate_line(comm* head, FILE* file){
+void translate_line(comm* head){
     printf("%s %s %s\n", head->command, head->arg1, head->arg2);
     switch (head->c_type){
         case (C_ARITHMETIC):
-            write_arithmetic(head->command, file);
+            write_arithmetic(head->command);
             break;
         case (C_JUMP):
-            write_jump(head->command, file);
+            write_jump(head->command);
             break;
         case (C_PUSH):
-            write_push(head->arg1, head->arg2, file);
+            write_push(head->arg1, head->arg2);
             break;
         case (C_POP):
-            write_pop(head->arg1, head->arg2, file);
+            write_pop(head->arg1, head->arg2);
             break;
         case (C_LABEL):
-            write_label(head->arg1, file);
+            write_label(head->arg1);
             break;
         case (C_GOTO):
-            write_goto(head->arg1, file);
+            write_goto(head->arg1);
             break;
         case (C_IF):
-            write_if(head->arg1, file);
+            write_if(head->arg1);
             break;
         case (C_FUNCTION):
-            write_function(head->arg1, head->arg2, file);
+            write_function(head->arg1, head->arg2);
             break;
         case (C_RETURN):
-            write_return(file);
+            write_return();
             break;
         case (C_CALL):
-            write_call(head->arg1, head->arg2, file);
+            write_call(head->arg1, head->arg2);
             break;
     }
 }
 
-void push(FILE* file){
-    fprintf(file, "@SP\n"); 
-    fprintf(file, "AM=M+1\n");
-    fprintf(file, "A=A-1\n");
-    fprintf(file, "M=D\n");
+void push(){
+    asmprint("s", "@SP"); 
+    asmprint("s", "AM=M+1");
+    asmprint("s", "A=A-1");
+    asmprint("s", "M=D");
 }
-void pop(FILE* file){
-    fprintf(file, "@SP\n");
-    fprintf(file, "AM=M-1\n");
-    fprintf(file, "D=M\n");
-}
-
-void constant(char* value, FILE* file){
-    fprintf(file, "@");
-    fprintf(file, value);
-    fprintf(file, "\n");
-    fprintf(file, "D=A\n");
+void pop(){
+    asmprint("s", "@SP");
+    asmprint("s", "AM=M-1");
+    asmprint("s", "D=M");
 }
 
-void write_arithmetic(char* command, FILE* file){
-    fprintf(file, "\n//%s\n", command);  //DEBUG
-    fprintf(file, "@SP\n");
+void constant(char* value){
+    asmprint("ss", "@", value);
+    asmprint("s", "D=A");
+}
+
+void write_arithmetic(char* command){
+    asmprint("ss", "\n//", command);  //DEBUG
+    asmprint("s", "@SP");
     if (strcmp(command, "not") != 0 && strcmp(command, "neg") != 0){
-        fprintf(file, "AM=M-1\n");
-        fprintf(file, "D=M\n");
-        fprintf(file, "A=A-1\n");
+        asmprint("s", "AM=M-1");
+        asmprint("s", "D=M");
+        asmprint("s", "A=A-1");
     }
     else{
-        fprintf(file, "A=M-1\n");
+        asmprint("s", "A=M-1");
     }
-    fprintf(file, "MD=");
-    fprintf(file, get_command_asm(command));
-    fprintf(file, "\n");
+    asmprint("ss", "MD=", get_command_asm(command));
 }
 
-void write_jump(char* command, FILE* file){
+void write_jump(char* command){
     char* jump;
     static int counter = 0;
     char* jump_map[] = {"gt", "JGT", "lt", "JLT", "eq", "JEQ"};
@@ -183,23 +180,23 @@ void write_jump(char* command, FILE* file){
             jump = jump_map[i+1];
         }
     }
-    fprintf(file, "\n//Start jump %s\n", jump);
-    fprintf(file, "@SP\n");
-    fprintf(file, "AM=M-1\n");
-    fprintf(file, "D=M\n");
-    fprintf(file, "A=A-1\n");
-    fprintf(file, "D=M-D\n");
-    fprintf(file, "@true%d\n", counter);
-    fprintf(file, "D;%s\n", jump);
-    fprintf(file, "D=0\n");
-    fprintf(file, "@end_jump%d\n", counter);
-    fprintf(file, "0;JMP\n");
-    fprintf(file, "(true%d)\n", counter);
-    fprintf(file, "D=-1\n");
-    fprintf(file, "(end_jump%d)\n", counter);
-    fprintf(file, "@SP\n");
-    fprintf(file, "A=M-1\n");
-    fprintf(file, "M=D\n");
+    asmprint("ss", "\n//Start jump ", jump); //DEBUG
+    asmprint("s", "@SP");
+    asmprint("s", "AM=M-1");
+    asmprint("s", "D=M");
+    asmprint("s", "A=A-1");
+    asmprint("s", "D=M-D");
+    asmprint("sd", "@true", counter);
+    asmprint("ss", "D;", jump);
+    asmprint("s", "D=0");
+    asmprint("sd", "@end_jump", counter);
+    asmprint("s", "0;JMP");
+    asmprint("sds", "(true", counter, ")");
+    asmprint("s", "D=-1");
+    asmprint("sds", "(end_jump", counter, ")");
+    asmprint("s", "@SP");
+    asmprint("s", "A=M-1");
+    asmprint("s", "M=D");
     counter++;
 }
 
@@ -213,7 +210,7 @@ void write_jump(char* command, FILE* file){
             jump = jump_map[i+1];
         }
     }
-    fprintf(file, "\n//Start of jump %s\n", jump);
+    fprintf(file, "\n//Start of jump %s\n", jump); //DEBUG
     fprintf(file, "@returnjump%d\n", rtn);
     fprintf(file, "D=A\n");
     fprintf(file, "@R13\n");
@@ -228,61 +225,61 @@ void write_jump(char* command, FILE* file){
     rtn++;
 }*/
 
-void write_push(char* arg1, char* arg2, FILE* file){;
-    fprintf(file, "\n//Push %s %s\n", arg1, arg2); //DEBUG
+void write_push(char* arg1, char* arg2){;
+    asmprint("ssss", "\n//Push ", arg1, " ", arg2); //DEBUG
     if (strcmp(arg1, "temp") == 0 || strcmp(arg1, "static") == 0 || strcmp(arg1, "pointer") == 0){
         if (strcmp(arg1, "temp") == 0){
-            get_temp_value(arg2, file);
+            get_temp_value(arg2);
         }
         else if(strcmp(arg1, "pointer") == 0){
-            get_pointer_address(arg2, file);
-            fprintf(file, "D=M\n");
+            get_pointer_address(arg2);
+            asmprint("s", "D=M");
         }
         else if (strcmp(arg1, "static") == 0){
-            get_static_address(arg2, file);
+            get_static_address(arg2);
         }
-        fprintf(file, "D=M\n");
+        asmprint("s", "D=M");
     }
     else if (strcmp(arg1, "constant") == 0){
-        constant(arg2, file);
+        constant(arg2);
     }
     else{
-        constant(arg2, file);
-        get_address_value(arg1, file);
+        constant(arg2);
+        get_address_value(arg1);
     }
-    push(file);
+    push();
 }
 
-void write_pop(char* arg1, char* arg2, FILE* file){
-    fprintf(file, "\n//Pop %s %s\n", arg1, arg2); //DEBUG
+void write_pop(char* arg1, char* arg2){
+    asmprint("ssss", "\n//Pop ", arg1, " ", arg2); //DEBUG
     if (strcmp(arg1, "temp") == 0 || strcmp(arg1, "static") == 0 || strcmp(arg1, "pointer") == 0){
-        pop(file);
+        pop();
         if (strcmp(arg1, "temp") == 0){
-            get_temp_value(arg2, file);
+            get_temp_value(arg2);
         }
         else if(strcmp(arg1, "pointer") == 0){
-            get_pointer_address(arg2, file);
+            get_pointer_address(arg2);
         }
         else if (strcmp(arg1, "static") == 0){
-            get_static_address(arg2, file);
+            get_static_address(arg2);
         }
-        fprintf(file, "M=D\n");
+        asmprint("s", "M=D");
     }
     else{
-        constant(arg2, file);
-        store_address_index(arg1, file);
-        pop(file);
-        fprintf(file, "@R13\n");
-        fprintf(file, "A=M\n");
-        fprintf(file, "M=D\n");
+        constant(arg2);
+        store_address_index(arg1);
+        pop();
+        asmprint("s", "@R13");
+        asmprint("s", "A=M");
+        asmprint("s", "M=D");
     }
 }
 
-void get_pointer_address(char* arg2, FILE* file){
-    fprintf(file, "%s\n", address_name_map[atoi(arg2)].value);
+void get_pointer_address(char* arg2){
+    asmprint("s", address_name_map[atoi(arg2)].value);
 }
 
-void get_static_address(char* arg2, FILE* file){
+void get_static_address(char* arg2){
     static int static_map[240];
     static int addr = 16;
     int i = atoi(arg2);
@@ -290,142 +287,139 @@ void get_static_address(char* arg2, FILE* file){
         static_map[i] = addr;
         addr++;
     }
-    fprintf(file, "@%d\n", static_map[i]);
+    asmprint("sd", "@", static_map[i]);
 }
 
-void get_temp_value(char* value, FILE* file){
+void get_temp_value(char* value){
     map temp_map[8] = {{"0", "@R5"}, {"1", "@R6"}, {"2", "@R7"}, {"3", "@R8"}, {"4", "@R9"}, {"5", "@R10"}, {"6", "@R11"}, {"7", "@R12"}};
 
     for (int i = 0; i < 8; i++){
         if(strcmp(value, temp_map[i].key) == 0){
-            fprintf(file, temp_map[i].value);
-            fprintf(file, "\n");
+            asmprint("s", temp_map[i].value);
         }
     }
 }
 
-void get_address_value(char* value, FILE* file){
+void get_address_value(char* value){
     for(int i = 0; i < 4; i++){
         if(strcmp(value, address_name_map[i].key) == 0){
-            fprintf(file, address_name_map[i].value);
-            fprintf(file, "\n");
-            fprintf(file, "A=D+M\n");
-            fprintf(file, "D=M\n");
+            asmprint("s", address_name_map[i].value);
+            asmprint("s", "A=D+M");
+            asmprint("s", "D=M");
         }
     }
 }
 
-void store_address_index(char* value, FILE* file){
+void store_address_index(char* value){
     for(int i = 0; i < 4; i++){
         if(strcmp(value, address_name_map[i].key) == 0){
-            fprintf(file, address_name_map[i].value);
-            fprintf(file, "\n");
-            fprintf(file, "D=D+M\n");
-            fprintf(file, "@R13\n");
-            fprintf(file, "M=D\n");
+            asmprint("s", address_name_map[i].value);
+            asmprint("s", "D=D+M");
+            asmprint("s", "@R13");
+            asmprint("s", "M=D");
         }
     }
 }
 
 
 
-void write_label(char* arg1, FILE* file){
-    fprintf(file, "\n//label %s\n", arg1);
-    fprintf(file, "(%s)\n", arg1);
+void write_label(char* arg1){
+    asmprint("ss", "\n//label ", arg1); //DEBUG
+    asmprint("sss", "(", arg1, ")");
 }
 
-void write_goto(char* arg1, FILE* file){
-    fprintf(file, "\n//goto %s\n", arg1);
-    fprintf(file, "@%s\n", arg1);
-    fprintf(file, "0;JMP\n");
+void write_goto(char* arg1){
+    asmprint("ss", "\n//goto ", arg1); //DEBUG
+    asmprint("ss", "@", arg1);
+    asmprint("s", "0;JMP");
 }
 
-void write_if(char* arg1, FILE* file){
-    fprintf(file, "\n//if-goto %s\n", arg1);
-    pop(file);
-    fprintf(file, "@%s\n", arg1);
-    fprintf(file, "D;JNE\n");
+void write_if(char* arg1){
+    asmprint("ss", "\n//if-goto ", arg1); //DEBUG
+    pop();
+    asmprint("ss", "@", arg1);
+    asmprint("s", "D;JNE");
 }
 
-void write_function(char* arg1, char* arg2, FILE* file){
-    fprintf(file, "\n//function %s %s\n", arg1, arg2);
-    fprintf(file, "(%s)\n", arg1);
-    zero_local(arg2, file);
+void write_function(char* arg1, char* arg2){
+    asmprint("ssss", "\n//function ", arg1, " ", arg2);  //DEBUG
+    asmprint("sss", "(", arg1, ")");
+    zero_local(arg2);
 
 }
 
-void zero_local(char* arg2, FILE* file){
+void zero_local(char* arg2){
     int n = atoi(arg2);
-    constant("0", file);
+    constant("0");
     for (int i = 0; i < n; i++){
-        push(file);
+        push();
     }
 }
 
-void write_return(FILE* file){
+void write_return(){
     char* map[] = {"@THAT", "1", "@THIS", "2", "ARG", "3", "LCL", "4"};
 
-    fprintf(file, "\n//return\n");
+    asmprint("s", "\n//return"); //DEBUG
 
-    fprintf(file, "@LCL\n");
-    fprintf(file, "D=M\n");
-    fprintf(file, "@R14\n");
-    fprintf(file, "M=D\n");
+    asmprint("s", "@LCL");
+    asmprint("s", "D=M");
+    asmprint("s", "@R14");
+    asmprint("s", "M=D");
 
-    constant("5", file);
-    fprintf(file, "@R14\n");
-    fprintf(file, "A=M-D\n");
-    fprintf(file, "D=M\n");
-    fprintf(file, "@R15\n");
-    fprintf(file, "M=D\n");
+    constant("5");
+    asmprint("s", "@R14");
+    asmprint("s", "A=M-D");
+    asmprint("s", "D=M");
+    asmprint("s", "@R15");
+    asmprint("s", "M=D");
 
-    pop(file);
-    fprintf(file, "@ARG\n");
-    fprintf(file, "A=M\n");
-    fprintf(file, "M=D\n");
+    pop();
+    asmprint("s", "@ARG");
+    asmprint("s", "A=M");
+    asmprint("s", "M=D");
 
-    fprintf(file, "@ARG\n");
-    fprintf(file, "D=M+1\n");
-    fprintf(file, "@SP\n");
-    fprintf(file, "M=D\n");
+    asmprint("s", "@ARG");
+    asmprint("s", "D=M+1");
+    asmprint("s", "@SP");
+    asmprint("s", "M=D");
 
     for (int i = 0; i < 4; i +=2 ){
-        constant(map[i+1], file);
-        fprintf(file, "@R14\n");
-        fprintf(file, "A=M-D\n");
-        fprintf(file, "D=M\n");
-        fprintf(file, "%s\n", map[i]);
-        fprintf(file, "M=D\n");
+        constant(map[i+1]);
+        asmprint("s", "@R14");
+        asmprint("s", "A=M-D");
+        asmprint("s", "D=M");
+        asmprint("s",  map[i]);
+        asmprint("s", "M=D");
     }
 
-    fprintf(file, "@R15\n");
-    fprintf(file, "A=M\n");
-    fprintf(file, "0;JMP\n");
+    asmprint("s", "@R15");
+    asmprint("s", "A=M");
+    asmprint("s", "0;JMP");
 }
 
-void write_call(char* arg1, char* arg2, FILE* file){
+void write_call(char* arg1, char* arg2){
 static int counter = 0;
     char* p[] = {"@LCL", "@ARG", "@THIS", "@THAT"}; 
 
-    fprintf(file, "\n//call %s %s\n", arg1, arg2);
-    fprintf(file, "@return%d\n", counter);
-    fprintf(file, "D=A\n");
-    push(file);
+    asmprint("ssss", "\n//call ", arg1, " ", arg2);
+    asmprint("sd", "@return", counter);
+    asmprint("s", "D=A");
+    push();
     for (int i = 0; i < 4; i++){
-        fprintf(file, "%s\n", p[i]);
-        fprintf(file, "D=M\n");
-        push(file);
+        asmprint("s", p[i]);
+        asmprint("s", "D=M");
+        push();
     }
-    constant(arg2, file);
-    fprintf(file, "@5\n");
-    fprintf(file, "D=D+A\n");
-    fprintf(file, "@SP\n");
-    fprintf(file, "D=M-D\n");
-    fprintf(file, "@ARG\n");
-    fprintf(file, "M=D\n");
-    fprintf(file, "@%s\n", arg1);
-    fprintf(file, "0;JMP\n");
-    fprintf(file, "(return%d)\n", counter);
+    constant(arg2);
+    asmprint("s", "@5");
+    asmprint("s", "D=D+A");
+    asmprint("s", "@SP");
+    asmprint("s", "D=M-D");
+    asmprint("s", "@ARG");
+    asmprint("s", "M=D");
+    asmprint("s", arg1);
+    asmprint("s", "0;JMP");
+    asmprint("sds", "(return", counter, ")");
     counter++;
     
 }
